@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { buttonRepeatInterval } from '../index'
-import { DeconzEventEmitter, NotImplementedError } from './utils'
 import { clearTimeout, setTimeout, setInterval } from 'timers';
+import {DeconzEventEmitter} from './utils'
 
 export var dimmers: {
 	[key: string]: AbstractDimmer
@@ -30,7 +30,7 @@ export class AbstractSensor extends EventEmitter {
 	uniqueid: string
 	name: string
 	protected enabled: boolean
-	protected timer: NodeJS.Timeout | null = null;
+	protected timer: any//NodeJS.Timeout | undefined
 
 	protected state: Object
 
@@ -45,6 +45,7 @@ export class AbstractSensor extends EventEmitter {
 		this.wshandler = this.wshandler.bind(this);
 
 		this.state = data.state
+		this.timer = setTimeout(()=>{})
 		//Object.assign(this.state, data.state)
 		deconz.on(this.uniqueid, this.wshandler);
 	}
@@ -100,12 +101,18 @@ export class AbstractDimmer extends AbstractSensor {
 
 interface MotionSensorState {
 	dark?: boolean
-	lastupdated: string
+	lastupdated?: string
 	presence: boolean
 }
 
 class AbstractMotionSensor extends AbstractSensor {
 	protected state: MotionSensorState
+	constructor(id: string, data: any, deconz: DeconzEventEmitter) {
+		super(id,data,deconz)
+		this.state = {
+			presence: false
+		}
+	}
 	wshandler(event: any, err: any) {
 		if ('state' in event) {
 			this.state = event.state
@@ -200,7 +207,7 @@ class IkeaTwoWayDimmer extends AbstractDimmer {
 						this.emit('release_dim_down', this)
 						break;
 					default:
-						throw new NotImplementedError(`handler for button event ${event.state.buttonevent} is not implemented.`)
+						console.log(`TODO: handler for button event ${event.state.buttonevent} is not implemented.`)
 				}
 			}
 		}
@@ -218,21 +225,21 @@ class PhilipsFourWayDimmer extends AbstractDimmer {
 					case 1000: this.emit('pressed_on', this); break;
 					case 1002: this.emit('released_on', this); break;
 					case 1001: if(!this.timer){ this.emit('hold_on', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_on')}; break;
-					case 1003: this.emit('release_hold_on', this); clearTimeout(this.timer); this.timer=null; break;
+					case 1003: this.emit('release_hold_on', this); clearTimeout(this.timer); this.timer=undefined; break;
 					case 2000: this.emit('pressed_dim_up', this); break;
 					case 2002: this.emit('released_dim_up', this); break;
 					case 2001: if(!this.timer){ this.emit('hold_dim_up', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_up')}; break;
-					case 2003: this.emit('release_hold_dim_up', this); clearTimeout(this.timer); this.timer=null; break;
+					case 2003: this.emit('release_hold_dim_up', this); clearTimeout(this.timer); this.timer=undefined; break;
 					case 3000: this.emit('pressed_dim_down', this); break;
 					case 3002: this.emit('released_dim_down', this); break;
 					case 3001: if(!this.timer){ this.emit('hold_dim_down', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_down')}; break;
-					case 3003: this.emit('release_hold_dim_down', this); clearTimeout(this.timer); this.timer=null; break;
+					case 3003: this.emit('release_hold_dim_down', this); clearTimeout(this.timer); this.timer=undefined; break;
 					case 4000: this.emit('pressed_off', this); break;
 					case 4002: this.emit('released_off', this); break;
 					case 4001: if(!this.timer){ this.emit('hold_off', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_off')}; break;
-					case 4003: this.emit('release_hold_off', this); clearTimeout(this.timer); this.timer=null; break;
+					case 4003: this.emit('release_hold_off', this); clearTimeout(this.timer); this.timer=undefined; break;
 					default:
-						throw new NotImplementedError(`handler for button event ${event.state.buttonevent} is not implemented.`)
+						console.log(`handler for button event ${event.state.buttonevent} is not implemented.`)
 				}
 			}
 		}
@@ -240,7 +247,7 @@ class PhilipsFourWayDimmer extends AbstractDimmer {
 }
 
 class AbstractTemperatureSensor extends AbstractSensor {
-	state: TemperatureSensorState
+	state!: TemperatureSensorState
 	wshandler(event: any, err: any) {
 		if ('state' in event) {
 			this.state = event.state
@@ -261,7 +268,7 @@ interface LightLevelSensorState {
 }
 
 class AbstractLightLevelSensor extends AbstractSensor {
-	protected state: LightLevelSensorState
+	protected state!: LightLevelSensorState
 	wshandler(event: any, err: any) {
 		if ('state' in event) {
 			this.state = event.state
@@ -340,7 +347,7 @@ class AqaraTwoWayDimmer extends AbstractDimmer {
 						this.emit('release_off', this)
 						break;
 					default:
-						throw new NotImplementedError(`handler for button event ${event.state.buttonevent} is not implemented.`)
+						console.log(`handler for button event ${event.state.buttonevent} is not implemented.`)
 				}
 			}
 		}
@@ -412,7 +419,7 @@ export function sensorsFactory(sensors_object: Object, deconz: DeconzEventEmitte
 				dimmers[data.uniqueid] = new AqaraFourWayDimmer(id, data, deconz)
 				break;
 			default:
-				throw new NotImplementedError(`Switch '${data.modelid}' made by '${data.manufacturername}' (type '${data.type}') is not supported.`)
+				console.log(`TODO: switch model '${data.modelid}' made by '${data.manufacturername}' (type '${data.type}') is not supported.`)
 		}
 	}
 }

@@ -18,7 +18,7 @@ export var outlets :{
 } = {}
 
 export interface LightState {
-	bri?: number
+	bri: number
 	on?: boolean
 	xy?: number[]
 	colormode?: string
@@ -74,6 +74,13 @@ export class AbstractDeconzLight {
 
 	activateState(state: LightState) {
 		this.deconz.api_put(`/lights/${this.id}/state`, state)
+		let myState: LightState = state;
+
+		if (myState.bri===0) {
+			myState.on=false
+		} else {
+			myState.on=true
+		}
 		console.log(`/lights/${this.id}/state`, state)
 	}
 
@@ -110,17 +117,21 @@ export class AbstractLight extends AbstractDeconzLight {
 
 	create_scene(name: string, timeout=0, priority=0, state?: LightState, transparent = false): boolean {
 		//FIXME: reject of scene creation with the same name
-		let scene: Scene = undefined;
+//		let scene: Scene = {};
 		if(name in this.scenes) {
-			scene = this.scenes[name]
-			clearTimeout(scene.timer)
-			console.log("scene already existed")
+			let scene = this.scenes[name]
+			//restart its timer
+			if(timeout>0) {
+				clearTimeout(scene.timer)
+				scene.timer = setTimeout(this.delete_scene, timeout, name)
+				console.log(`scene ${name} already existed, restarted its timer`)
+			} else 
+				console.log(`scene ${name} already existed`)
 			return false
-		} else {
-			scene = new Scene(name, priority, transparent=transparent)
-			this.scenes[name]=scene
-			this.sceneNames.push(name)
 		}
+		let scene = new Scene(name, priority, transparent=transparent)
+		this.scenes[name]=scene
+		this.sceneNames.push(name)
 		if(timeout>0)
 			scene.timer = setTimeout(this.delete_scene, timeout, name)
 		if(state)
@@ -149,7 +160,7 @@ export class AbstractLight extends AbstractDeconzLight {
 		Object.values(this.scenes).filter((scene: Scene) => {
 			return scene.enabled === true
 		}).sort(sortScenes).every(function(scene: Scene) {
-			if(scene.state.bri > finalState.bri) {
+			if(scene?.state?.bri ?? 0 > finalState.bri) {
 				finalState = scene.state
 			}
 			return scene.transparent //will continue to next, less prioritry scene
@@ -170,16 +181,6 @@ function sortScenes(a: Scene, b: Scene) {
 }
 
 class InnrLedStripLight extends AbstractLight {
-	activateState(state: LightState) {
-		let myState: LightState = state;
-
-		if (myState.bri===0) {
-			myState.on=false
-		} else {
-			myState.on=true
-		}
-		super.activateState(myState)
-	}
 }
 
 class PhilipsWhiteAmbianceBulbLight extends AbstractLight {

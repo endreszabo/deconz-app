@@ -8,39 +8,6 @@ import {LightState, lightsFactory, groupsFactory, AbstractOnOffOutlet} from './l
 import {sensorsFactory} from './sensors'
 
 /**
- * @summary A error thrown when a method is defined but not implemented (yet).
- * @param {any} message An additional message for the error.
- */
-export function NotImplementedError(message: string = '') {
-    ///<summary>The error thrown when the given function isn't implemented.</summary>
-    const sender = (new Error)
-        .stack
-        .split('\n')[2]
-        .replace(' at ','')
-        ;
-
-    var str = `The method ${sender} isn't implemented.`;
-
-    // Append the message if given.
-    if (message)
-        str += ` Message: "${message}".`;
-
-    while (str.indexOf('  ') > -1) {
-        str = str.replace('  ', ' ');
-    }
-
-    this.message = str;
-}
-
-NotImplementedError.prototype = Object.create(Error.prototype, {
-    constructor: { value: NotImplementedError },
-    name: { value: 'NotImplementedError' },
-    stack: { get: function() {
-        return new Error().stack;
-    }},
-});
-
-/**
  * Switches first OFF state outlet to ON
  * @param {AbstractOnOffOutlet[]} outlets  A list of outlets in question
  */
@@ -61,7 +28,7 @@ export function switch_last_on_off(outlets: AbstractOnOffOutlet[]) {
     }
 }
 
-function obj2mqtt(data,path) {
+function obj2mqtt(data: any, path: String) {
     var rv=Array();
     if(typeof data === 'number')
         return [[path, String(data)]]
@@ -173,7 +140,7 @@ export class DeconzEventEmitter extends EventEmitter {
 	}
 
     api_put(path: string, body: Object) {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<http.IncomingMessage>((resolve, reject) => {
             var options = {
                 hostname: deconzIP,
                 port: 9181,
@@ -182,7 +149,7 @@ export class DeconzEventEmitter extends EventEmitter {
                 path: `/api/${APIkey}/${path}`
             }
 
-            const cb = function(response) {
+            const cb = function(response: http.IncomingMessage) {
                 resolve(response);
             }
             const req = http.request(options, cb)

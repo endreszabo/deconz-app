@@ -6,16 +6,18 @@ export class Scene {
 	public enabled: boolean
 	public readonly name: string
 	public priority: number
-	public timer: NodeJS.Timeout | null = null;
+	public timer: any//ReturnType<typeof setTimeout>;//NodeJS.Timeout;
 	public transparent: boolean
 
 	constructor(name: string, priority = 0, transparent = false) {
 		this.transparent = transparent
 		this.enabled = true
 		this.priority = priority
-		this.state = {}
+		this.state = {
+			bri: 0
+		}
 		this.name = name
-		this.timer = null;
+		this.timer = undefined;
 	}
 
 	set lightState(state: LightState) {

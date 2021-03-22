@@ -1,8 +1,12 @@
 {
   "name": "deconz-app",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "license": "GPLv2",
   "dependencies": {
     "events": "^3.3.0",
     "http": "0.0.1-security",
