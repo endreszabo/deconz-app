@@ -20,6 +20,15 @@ export class Scene {
 		this.timer = undefined;
 	}
 
+	toJSON() {
+		return {
+			is_transparent: this.transparent,
+			is_enabled: this.enabled,
+			priority: this.priority,
+			state: this.state,
+		}
+	}
+
 	set lightState(state: LightState) {
 		this.state = state
 	}

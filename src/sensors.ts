@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { buttonRepeatInterval } from '../index'
-import { clearTimeout, setTimeout, setInterval } from 'timers';
+import { clearInterval, setTimeout, setInterval } from 'timers';
 import {DeconzEventEmitter} from './utils'
 
 export var dimmers: {
@@ -193,7 +193,7 @@ class IkeaTwoWayDimmer extends AbstractDimmer {
 						break;
 					case 'true,2003':
 					case 'false,1003':
-						clearTimeout(this.timer)
+						clearInterval(this.timer)
 						this.emit('release_dim_up', this)
 						break;
 					case 'true,1001':
@@ -203,7 +203,7 @@ class IkeaTwoWayDimmer extends AbstractDimmer {
 						break;
 					case 'true,1003':
 					case 'false,2003':
-						clearTimeout(this.timer)
+						clearInterval(this.timer)
 						this.emit('release_dim_down', this)
 						break;
 					default:
@@ -225,19 +225,19 @@ class PhilipsFourWayDimmer extends AbstractDimmer {
 					case 1000: this.emit('pressed_on', this); break;
 					case 1002: this.emit('released_on', this); break;
 					case 1001: if(!this.timer){ this.emit('hold_on', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_on')}; break;
-					case 1003: this.emit('release_hold_on', this); clearTimeout(this.timer); this.timer=undefined; break;
+					case 1003: this.emit('release_hold_on', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 2000: this.emit('pressed_dim_up', this); break;
 					case 2002: this.emit('released_dim_up', this); break;
 					case 2001: if(!this.timer){ this.emit('hold_dim_up', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_up')}; break;
-					case 2003: this.emit('release_hold_dim_up', this); clearTimeout(this.timer); this.timer=undefined; break;
+					case 2003: this.emit('release_hold_dim_up', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 3000: this.emit('pressed_dim_down', this); break;
 					case 3002: this.emit('released_dim_down', this); break;
 					case 3001: if(!this.timer){ this.emit('hold_dim_down', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_down')}; break;
-					case 3003: this.emit('release_hold_dim_down', this); clearTimeout(this.timer); this.timer=undefined; break;
+					case 3003: this.emit('release_hold_dim_down', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 4000: this.emit('pressed_off', this); break;
 					case 4002: this.emit('released_off', this); break;
 					case 4001: if(!this.timer){ this.emit('hold_off', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_off')}; break;
-					case 4003: this.emit('release_hold_off', this); clearTimeout(this.timer); this.timer=undefined; break;
+					case 4003: this.emit('release_hold_off', this); clearInterval(this.timer); this.timer=undefined; break;
 					default:
 						console.log(`handler for button event ${event.state.buttonevent} is not implemented.`)
 				}
@@ -300,7 +300,7 @@ class AqaraTwoWayDimmer extends AbstractDimmer {
 	wshandler(event: any, err: any) {
 		if ('state' in event) {
 			if ('buttonevent' in event.state) {
-				clearTimeout(this.timer)
+				clearInterval(this.timer)
 				switch([this.inverted, event.state.buttonevent].join()) {
 					case 'true,2002':
 					case 'false,1002':
@@ -321,7 +321,7 @@ class AqaraTwoWayDimmer extends AbstractDimmer {
 						break;
 					case 'true,2003':
 					case 'false,1003':
-						clearTimeout(this.timer)
+						clearInterval(this.timer)
 						this.emit('release_off', this)
 						break;
 					case 'true,1002':
@@ -343,7 +343,7 @@ class AqaraTwoWayDimmer extends AbstractDimmer {
 						break;
 					case 'true,1003':
 					case 'false,2003':
-						clearTimeout(this.timer)
+						clearInterval(this.timer)
 						this.emit('release_off', this)
 						break;
 					default:
@@ -353,18 +353,120 @@ class AqaraTwoWayDimmer extends AbstractDimmer {
 		}
 	}
 }
-class AqaraFourWayDimmer extends AbstractDimmer {
-}
 
+class AqaraFourWayDimmer extends AqaraTwoWayDimmer {
+	wshandler(event: any, err: any) {
+		if ('state' in event) {
+			if ('buttonevent' in event.state) {
+				clearInterval(this.timer)
+				switch([this.inverted, event.state.buttonevent].join()) {
+					//top row
+					case 'true,4002':
+					case 'false,1002':
+						this.emit('pressed_btn1', this);
+						break;
+					case 'true,4004':
+					case 'false,1004':
+						this.emit('pressed_btn1_double', this);
+						break;
+					case 'true,4005':
+					case 'false,1005':
+						this.emit('pressed_btn1_triple', this);
+						break;
+					case 'true,4001':
+					case 'false,1001':
+						this.emit('hold_btn1', this)
+						this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_btn1')
+						break;
+					case 'true,4003':
+					case 'false,1003':
+						clearInterval(this.timer)
+						this.emit('release_btn1', this)
+						break;
+
+					case 'true,3002':
+					case 'false,2002':
+						this.emit('pressed_btn2', this);
+						break;
+					case 'true,3004':
+					case 'false,2004':
+						this.emit('pressed_btn2_double', this);
+						break;
+					case 'true,3005':
+					case 'false,2005':
+						this.emit('pressed_btn2_triple', this);
+						break;
+					case 'true,3001':
+					case 'false,2001':
+						this.emit('hold_btn2', this)
+						this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_btn2')
+						break;
+					case 'true,3003':
+					case 'false,2003':
+						clearInterval(this.timer)
+						this.emit('release_btn2', this)
+						break;
+
+					//bottom row
+					case 'true,2002':
+					case 'false,3002':
+						this.emit('pressed_btn3', this);
+						break;
+					case 'true,2004':
+					case 'false,3004':
+						this.emit('pressed_btn3_double', this);
+						break;
+					case 'true,2005':
+					case 'false,3005':
+						this.emit('pressed_btn3_triple', this);
+						break;
+					case 'true,2001':
+					case 'false,3001':
+						this.emit('hold_btn3', this)
+						this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_btn3')
+						break;
+					case 'true,2003':
+					case 'false,3003':
+						clearInterval(this.timer)
+						this.emit('release_btn3', this)
+						break;
+
+					case 'true,1002':
+					case 'false,4002':
+						this.emit('pressed_btn4', this);
+						break;
+					case 'true,1004':
+					case 'false,4004':
+						this.emit('pressed_btn4_double', this);
+						break;
+					case 'true,1005':
+					case 'false,4005':
+						this.emit('pressed_btn4_triple', this);
+						break;
+					case 'true,1001':
+					case 'false,4001':
+						this.emit('hold_btn4', this)
+						this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_btn4')
+						break;
+					case 'true,1003':
+					case 'false,4003':
+						clearInterval(this.timer)
+						this.emit('release_btn4', this)
+						break;
+
+					default:
+						console.log(`handler for button event ${event.state.buttonevent} is not implemented.`)
+				}
+			}
+		}
+	}
+}
 
 
 interface TemperatureSensorState {
 	lastupdated: string
 	temperature: number
 }
-
-
-
 
 export function sensorsFactory(sensors_object: Object, deconz: DeconzEventEmitter) {
 	for(const[id, data] of Object.entries(sensors_object)) {

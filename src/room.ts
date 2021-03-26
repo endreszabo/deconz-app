@@ -21,6 +21,13 @@ export class Room {
 		this.active_scene = 'day'
 		this.deconz = deconz
 	}
+	toJSON() {
+		return {
+			lights: this.lights,
+			outlets: this.outlets,
+			active_scene: this.active_scene
+		}
+	}
 	/**
 	 * Creates all the default scenes on all the defined lights
 	 * @param startup_scene Scene to start with

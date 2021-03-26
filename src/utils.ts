@@ -125,7 +125,7 @@ export class DeconzEventEmitter extends EventEmitter {
 		const connection = new WebSocket(deconzURL);
 		
 		connection.onmessage = event => {
-			console.log("got event from WS", event.data)
+//			console.log("got event from WS", event.data)
 			const data=JSON.parse(event.data.toString());
 			if ('uniqueid' in data) {
 				this.emit(data.uniqueid, data)

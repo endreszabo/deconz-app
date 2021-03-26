@@ -57,6 +57,14 @@ export class AbstractDeconzLight {
 		deconz.on(this.uniqueid, this.wshandler);
 	}
 
+	toJSON() {
+		return {
+			hue_id: this.id,
+			name: this.name,
+			uniqueid: this.uniqueid
+		}
+	}
+
 	wshandler(event: any, err: any) {
 		if('state' in event) {
 			Object.assign(this.state, event.state)
@@ -73,7 +81,6 @@ export class AbstractDeconzLight {
 	}
 
 	activateState(state: LightState) {
-		this.deconz.api_put(`/lights/${this.id}/state`, state)
 		let myState: LightState = state;
 
 		if (myState.bri===0) {
@@ -81,7 +88,8 @@ export class AbstractDeconzLight {
 		} else {
 			myState.on=true
 		}
-		console.log(`/lights/${this.id}/state`, state)
+		this.deconz.api_put(`/lights/${this.id}/state`, myState)
+		console.log(`Activating state: /lights/${this.id}/state`, state)
 	}
 
 }
@@ -99,11 +107,20 @@ export class AbstractLight extends AbstractDeconzLight {
 		this.delete_scene = this.delete_scene.bind(this);
 	}
 
+	toJSON() {
+		return Object.assign(super.toJSON(), {
+			scenes: this.scenes,
+			state: this.state
+		})
+	}
+
 	delete_scene(name_to_delete: string): boolean {
 		let found=false; // javascript misses the for..else clause
 		for(let [name, scene] of Object.entries(this.scenes)) {
 			if(name===name_to_delete) {
 				found=true;
+				//TOOD: consider this to prevent further actions to fire
+				//clearTimeout(this.scenes[name_to_delete].timer)
 				delete(this.scenes[name_to_delete])
 				this.sceneNames.splice(this.sceneNames.indexOf(name),1)
 				this.update()
@@ -160,7 +177,7 @@ export class AbstractLight extends AbstractDeconzLight {
 		Object.values(this.scenes).filter((scene: Scene) => {
 			return scene.enabled === true
 		}).sort(sortScenes).every(function(scene: Scene) {
-			if(scene?.state?.bri ?? 0 > finalState.bri) {
+			if(scene.state.bri > finalState.bri) {
 				finalState = scene.state
 			}
 			return scene.transparent //will continue to next, less prioritry scene
@@ -180,6 +197,8 @@ function sortScenes(a: Scene, b: Scene) {
 	return 0;
 }
 
+class PhilipsLedStripLight extends AbstractLight {
+}
 class InnrLedStripLight extends AbstractLight {
 }
 
@@ -212,6 +231,14 @@ class LidlTableLight extends AbstractLight {
 }
 
 export class AbstractOnOffOutlet extends AbstractDeconzLight {
+	activateState(state: LightState) {
+		this.deconz.api_put(`/lights/${this.id}/state`, state)
+	}
+	toJSON() {
+		return Object.assign(super.toJSON(), {
+			switched_on: this.state.on
+		})
+	}
 	switch_on() {
 		this.state.on=true
 		this.update()
@@ -235,8 +262,6 @@ export function groupsFactory(groups_object: Object, deconz: DeconzEventEmitter)
 		groups[id] = new LightGroup(id, data, deconz)
 		groupsByName[data.name] = groups[id]
 	}
-	console.log(groups)
-	console.log(groupsByName)
 }
 
 export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter) {
@@ -251,6 +276,9 @@ export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter)
 				break;
 			case 'Extended color light/Philips/LCT015':
 				lights[data.uniqueid] = new PhilipsColorGamutCBulbLight(id, data, deconz)
+				break;
+			case 'Extended color light/Philips/LST002':
+				lights[data.uniqueid] = new PhilipsLedStripLight(id, data, deconz)
 				break;
 			case 'Extended color light/innr/FL 130 C':
 				lights[data.uniqueid] = new InnrLedStripLight(id, data, deconz)
