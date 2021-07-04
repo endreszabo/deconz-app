@@ -137,6 +137,7 @@ class IkeaMotionSensor extends AbstractMotionSensor {
 
 class PhilipsIndoorMotionSensor extends AbstractMotionSensor {
 }
+
 class PhilipsOutdoorMotionSensor extends AbstractMotionSensor {
 }
 class SoftwareMotionSensor extends AbstractMotionSensor {
@@ -224,19 +225,23 @@ class PhilipsFourWayDimmer extends AbstractDimmer {
 				switch(event.state.buttonevent) {
 					case 1000: this.emit('pressed_on', this); break;
 					case 1002: this.emit('released_on', this); break;
-					case 1001: if(!this.timer){ this.emit('hold_on', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_on')}; break;
+					//case 1001: if(!this.timer){ this.emit('hold_on', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_on')}; break;
+					case 1001: this.emit('tick_on'); this.emit('hold_on'); break;
 					case 1003: this.emit('release_hold_on', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 2000: this.emit('pressed_dim_up', this); break;
 					case 2002: this.emit('released_dim_up', this); break;
-					case 2001: if(!this.timer){ this.emit('hold_dim_up', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_up')}; break;
+					//case 2001: if(!this.timer){ this.emit('hold_dim_up', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_up')}; break;
+					case 2001: this.emit('tick_dim_up'); this.emit('hold_dim_up'); break;
 					case 2003: this.emit('release_hold_dim_up', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 3000: this.emit('pressed_dim_down', this); break;
 					case 3002: this.emit('released_dim_down', this); break;
-					case 3001: if(!this.timer){ this.emit('hold_dim_down', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_down')}; break;
+					//case 3001: if(!this.timer){ this.emit('hold_dim_down', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_dim_down')}; break;
+					case 3001: this.emit('tick_dim_down'); this.emit('hold_dim_down'); break;
 					case 3003: this.emit('release_hold_dim_down', this); clearInterval(this.timer); this.timer=undefined; break;
 					case 4000: this.emit('pressed_off', this); break;
 					case 4002: this.emit('released_off', this); break;
-					case 4001: if(!this.timer){ this.emit('hold_off', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_off')}; break;
+					//case 4001: if(!this.timer){ this.emit('hold_off', this); this.timer = setInterval(this.buttonTick, buttonRepeatInterval, 'tick_off')}; break;
+					case 1001: this.emit('tick_off'); this.emit('hold_off'); break;
 					case 4003: this.emit('release_hold_off', this); clearInterval(this.timer); this.timer=undefined; break;
 					default:
 						console.log(`handler for button event ${event.state.buttonevent} is not implemented.`)
