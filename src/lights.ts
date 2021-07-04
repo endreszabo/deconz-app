@@ -1,6 +1,7 @@
-import { DeconzEventEmitter } from './utils'
+import { DeconzEventEmitter, deconzLightEvent } from './utils'
 import { Scene } from './scene'
 import { clearTimeout, setTimeout, setInterval } from 'timers';
+import { Logger } from "tslog";
 
 export var lights:{
 	[key: string]: AbstractLight
@@ -28,6 +29,7 @@ export interface LightState {
 	reachable?: boolean
 	sat?: number
 	alert?: "none"|"select"|"lselect"
+	transitiontime?: number
 }
 
 export class AbstractDeconzLight {
@@ -38,12 +40,14 @@ export class AbstractDeconzLight {
 	type: string
 	uniqueid: string
     deconz: DeconzEventEmitter
+	logger: Logger
 
-	constructor(id: string, data: any, deconz: DeconzEventEmitter) {
+	constructor(id: string, data: any, deconz: DeconzEventEmitter, logger: Logger) {
 		this.id = id;
 		this.modelid = data.modelid
 		this.name = data.name
 		this.modelid = data.modelid
+		this.logger = logger
 		//this.state = data.state
 		this.state = { ...data.state }
         if(this.state.on === false) {
@@ -65,9 +69,10 @@ export class AbstractDeconzLight {
 		}
 	}
 
-	wshandler(event: any, err: any) {
-		if('state' in event) {
-			Object.assign(this.state, event.state)
+	wshandler(event: deconzLightEvent) {
+		if('state' in event.payload) {
+			this.logger.setSettings({requestId: event.eventId})
+			Object.assign(this.state, event.payload.state)
 		}
 	}
 
@@ -80,7 +85,7 @@ export class AbstractDeconzLight {
 		return this.state.reachable
 	}
 
-	activateState(state: LightState) {
+	activateState(state: LightState, transition: number=4) {
 		let myState: LightState = state;
 
 		if (myState.bri===0) {
@@ -88,6 +93,7 @@ export class AbstractDeconzLight {
 		} else {
 			myState.on=true
 		}
+		myState.transitiontime = transition
 		this.deconz.api_put(`/lights/${this.id}/state`, myState)
 		console.log(`Activating state: /lights/${this.id}/state`, state)
 	}
@@ -123,7 +129,7 @@ export class AbstractLight extends AbstractDeconzLight {
 				//clearTimeout(this.scenes[name_to_delete].timer)
 				delete(this.scenes[name_to_delete])
 				this.sceneNames.splice(this.sceneNames.indexOf(name),1)
-				this.update()
+				this.update(this.scenes[name_to_delete].transitionOut)
 				return true
 			}
 		}
@@ -132,6 +138,14 @@ export class AbstractLight extends AbstractDeconzLight {
 		return false
 	}
 
+	/**
+	 * Creates a scene for the light 
+	 * @param name  Name of scene
+	 * @param timeout  Timeout in minutes
+	 * @param priority  Prioirty, higher takes precedence
+	 * @param state  State object to be PUT on API
+	 * @param transparent  Continue with processing lower precedence scenes that has higher bri
+	 */
 	create_scene(name: string, timeout=0, priority=0, state?: LightState, transparent = false): boolean {
 		//FIXME: reject of scene creation with the same name
 //		let scene: Scene = {};
@@ -140,7 +154,7 @@ export class AbstractLight extends AbstractDeconzLight {
 			//restart its timer
 			if(timeout>0) {
 				clearTimeout(scene.timer)
-				scene.timer = setTimeout(this.delete_scene, timeout, name)
+				scene.timer = setTimeout(this.delete_scene, timeout*60000, name)
 				console.log(`scene ${name} already existed, restarted its timer`)
 			} else 
 				console.log(`scene ${name} already existed`)
@@ -150,7 +164,7 @@ export class AbstractLight extends AbstractDeconzLight {
 		this.scenes[name]=scene
 		this.sceneNames.push(name)
 		if(timeout>0)
-			scene.timer = setTimeout(this.delete_scene, timeout, name)
+			scene.timer = setTimeout(this.delete_scene, timeout*60000, name)
 		if(state)
 			scene.lightState = state
 		else {
@@ -170,7 +184,7 @@ export class AbstractLight extends AbstractDeconzLight {
 		this.update()
 	}
 
-	update() {
+	update(transition = 4) {
 		let finalState: LightState = {
 			bri: 0
 		}
@@ -182,7 +196,7 @@ export class AbstractLight extends AbstractDeconzLight {
 			}
 			return scene.transparent //will continue to next, less prioritry scene
 		})
-		this.activateState(finalState);
+		this.activateState(finalState, transition);
 	}
 }
 
@@ -225,10 +239,21 @@ class PhilipsColorGamutCBulbLight extends AbstractLight {
 		super.activateState(myState)
 	}
 }
-
-class LidlTableLight extends AbstractLight {
-
+class IkeaE27WW806lm extends AbstractLight {
+	activateState(state: LightState) {
+		let myState: LightState = state;
+		if (myState.bri===0) {
+			myState.on=false
+		} else {
+			myState.on=true
+		}
+		super.activateState(myState)
+	}
 }
+
+class LidlTableLight extends AbstractLight { }
+
+class LidlE27ColorLight extends AbstractLight { }
 
 export class AbstractOnOffOutlet extends AbstractDeconzLight {
 	activateState(state: LightState) {
@@ -257,18 +282,22 @@ class LidlOutlet extends AbstractOnOffOutlet {
 class IkeaOutlet extends AbstractOnOffOutlet {
 }
 
-export function groupsFactory(groups_object: Object, deconz: DeconzEventEmitter) {
+export function groupsFactory(groups_object: Object, deconz: DeconzEventEmitter, logger: Logger) {
 	for(const[id, data] of Object.entries(groups_object)) {
 		groups[id] = new LightGroup(id, data, deconz)
 		groupsByName[data.name] = groups[id]
 	}
 }
 
-export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter) {
+export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter, logger: Logger) {
 	for(const[id, data] of Object.entries(lights_object)) {
 		process.stdout.write(".")
 		switch(`${data.type}/${data.manufacturername}/${data.modelid}`) {
 			case 'Extended color light/Philips/LCA001':
+				//fixme ez nem annyita ambiance szerintem
+				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name });)
+				break;
+			case 'Color temperature light/Philips/LTW010':
 				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz)
 				break;
 			case 'Extended color light/Philips/LCT010':
@@ -283,12 +312,18 @@ export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter)
 			case 'Extended color light/innr/FL 130 C':
 				lights[data.uniqueid] = new InnrLedStripLight(id, data, deconz)
 				break;
+			case 'Dimmable light/IKEA of Sweden/TRADFRI bulb E27 WW 806lm':
+				lights[data.uniqueid] = new IkeaE27WW806lm(id, data, deconz)
+				break;
 			case 'On/Off plug-in unit/Heiman/TS011F':
 				//outlets of this kind may have a duplicate with their uniqueid ending in -01
 				outlets[data.uniqueid] = new LidlOutlet(id, data, deconz)
 				break;
 			case 'On/Off plug-in unit/IKEA of Sweden/TRADFRI control outlet':
 				outlets[data.uniqueid] = new IkeaOutlet(id, data, deconz)
+				break;
+			case 'Extended color light/Heiman/TS0505A':
+				lights[data.uniqueid] = new LidlE27ColorLight(id, data, deconz)
 				break;
 			case 'Extended color light/LIDL Livarno Lux/14149506L':
 				lights[data.uniqueid] = new LidlTableLight(id, data, deconz)

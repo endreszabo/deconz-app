@@ -8,15 +8,21 @@ export class Scene {
 	public priority: number
 	public timer: any//ReturnType<typeof setTimeout>;//NodeJS.Timeout;
 	public transparent: boolean
+	public transitionIn: number
+	public transitionOut: number
 
-	constructor(name: string, priority = 0, transparent = false) {
-		this.transparent = transparent
-		this.enabled = true
+	constructor(name: string, priority = 0, transparent = false, transitionIn = 400, transitionOut = 400) {
+		this.name = name
 		this.priority = priority
+		this.transparent = transparent
+		this.transitionIn = transitionIn
+		this.transitionOut = transitionOut
+
+		//defaults
+		this.enabled = true
 		this.state = {
 			bri: 0
 		}
-		this.name = name
 		this.timer = undefined;
 	}
 

@@ -6,6 +6,17 @@ import mqttlib = require('mqtt');
 
 import {LightState, lightsFactory, groupsFactory, AbstractOnOffOutlet} from './lights'
 import {sensorsFactory} from './sensors'
+import { Logger } from "tslog";
+
+export interface deconzEvent {
+    payload: any
+    eventId: string
+}
+
+export interface deconzLightEvent {
+    payload: LightState
+    eventId: string
+}
 
 /**
  * Switches first OFF state outlet to ON
@@ -58,7 +69,7 @@ function obj2mqtt(data: any, path: String) {
     return rv;
 } 
 
-export function entityFactory(deconzIP: string, deconz: DeconzEventEmitter) {
+export function entityFactory(deconzIP: string, deconz: DeconzEventEmitter, logger: Logger) {
 	return new Promise<void>((resolve, reject) => {
 		var options = {
 			hostname: deconzIP,
@@ -77,12 +88,13 @@ export function entityFactory(deconzIP: string, deconz: DeconzEventEmitter) {
 
 			res.on("end", async () => {
 				var data = await JSON.parse(body);
-				process.stdout.write("Creating lights ")
-				lightsFactory(data.lights, deconz);
-				process.stdout.write("\nCreating sensors ")
-				sensorsFactory(data.sensors, deconz);
-				groupsFactory(data.groups, deconz);
-				process.stdout.write("\nDone!\n")
+                logger.info("Creating lights")
+				lightsFactory(data.lights, deconz, logger.getChildLogger({ name: "lightsFactory" }));
+                logger.info("Creating sensors")
+                //FIXME: check if name added
+				sensorsFactory(data.sensors, deconz, logger.getChildLogger({ }));
+                logger.info("Creating groups")
+				groupsFactory(data.groups, deconz, logger.getChildLogger({ name: "groupsFactory" }));
 				resolve();
 			});
 
@@ -128,13 +140,18 @@ export class DeconzEventEmitter extends EventEmitter {
 //			console.log("got event from WS", event.data)
 			const data=JSON.parse(event.data.toString());
 			if ('uniqueid' in data) {
-				this.emit(data.uniqueid, data)
+                let hrTime = process.hrtime()
+                let msg: deconzEvent = {
+                    payload: data,
+                    eventId: (hrTime[0] * 1000000000 + hrTime[1]).toString()
+                };
+				this.emit(data.uniqueid, msg)
                 obj2mqtt(data, `/deconz/${data.uniqueid}/raw`).every((k,v) => {
                     this.mqtt.publish(k[0],k[1])
                     return true;
                 })
 			} else {
-				console.log("unprocessed event", event.data)
+				console.log("unprocessed event", event.data, event)
 			}
 		}
 	}

@@ -1,5 +1,4 @@
 
-import { TransitionStingerCommand } from 'atem-connection/dist/commands'
 import {AbstractLight, AbstractOnOffOutlet} from './lights'
 import {DeconzEventEmitter} from './utils'
 export class Room {

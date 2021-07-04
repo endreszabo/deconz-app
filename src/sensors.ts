@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { buttonRepeatInterval } from '../index'
 import { clearInterval, setTimeout, setInterval } from 'timers';
 import {DeconzEventEmitter} from './utils'
+import { Logger } from "tslog";
 
 export var dimmers: {
 	[key: string]: AbstractDimmer
@@ -473,7 +474,7 @@ interface TemperatureSensorState {
 	temperature: number
 }
 
-export function sensorsFactory(sensors_object: Object, deconz: DeconzEventEmitter) {
+export function sensorsFactory(sensors_object: Object, deconz: DeconzEventEmitter, logger: Logger) {
 	for(const[id, data] of Object.entries(sensors_object)) {
 		process.stdout.write(".")
 		switch(`${data.type}/${data.manufacturername}/${data.modelid}`) {

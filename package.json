@@ -6,11 +6,12 @@
   "files": [
     "/dist"
   ],
-  "license": "GPLv2",
+  "license": "GPL-2.0-only",
   "dependencies": {
     "events": "^3.3.0",
     "http": "0.0.1-security",
     "mqtt": "^4.2.6",
+    "tslog": "^3.2.0",
     "ws": "^7.4.3"
   },
   "devDependencies": {
