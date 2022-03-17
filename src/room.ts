@@ -1,6 +1,8 @@
 
 import {AbstractLight, AbstractOnOffOutlet} from './lights'
 import {DeconzEventEmitter} from './utils'
+import { Logger } from "tslog";
+
 export class Room {
 	name: string
 	active_scene: string
@@ -12,7 +14,10 @@ export class Room {
 	}
 	default_scenes: string[]
 	deconz: DeconzEventEmitter
-	constructor(name: string, deconz: DeconzEventEmitter) {
+	logger: Logger
+
+	constructor(name: string, deconz: DeconzEventEmitter, logger: Logger) {
+		this.logger = logger
 		this.name = name
 		this.lights = {}
 		this.outlets = {}
@@ -33,15 +38,16 @@ export class Room {
 	 */
 	create_default_scenes_on_lights(startup_scene: string, lights: AbstractLight[]) {
 		lights.every((light) => {
-			console.log('light',light)
+			this.logger.debug(`creating default scenes; light_name='${light.name}'`);
 			this.default_scenes.every((scene_name) => {
 				light.create_scene(scene_name)
 			})
-			//FIXME: dont issue this if light had conflicting scenes before. eg. it has been initialized by another room
+			//FIXME: don't issue this if light had conflicting scenes before. eg. it has been initialized by another room
 			light.set_active_scene(startup_scene)
 			return true
 		})
 	}
+
 	set_active_scene(scene_name: string) {
 		for(const[id, light] of Object.entries(this.lights)) {
 			light.set_active_scene(scene_name)

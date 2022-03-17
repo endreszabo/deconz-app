@@ -44,18 +44,19 @@ export class AbstractDeconzLight {
 
 	constructor(id: string, data: any, deconz: DeconzEventEmitter, logger: Logger) {
 		this.id = id;
-		this.modelid = data.modelid
+        this.deconz = deconz
+		this.logger = logger
+
+		//defaults
 		this.name = data.name
 		this.modelid = data.modelid
-		this.logger = logger
+		this.type = data.type
+		this.uniqueid = data.uniqueid
 		//this.state = data.state
 		this.state = { ...data.state }
         if(this.state.on === false) {
             this.state.bri = 0
         }
-		this.type = data.type
-		this.uniqueid = data.uniqueid
-        this.deconz = deconz
 
 		this.wshandler = this.wshandler.bind(this);
 		deconz.on(this.uniqueid, this.wshandler);
@@ -70,9 +71,15 @@ export class AbstractDeconzLight {
 	}
 
 	wshandler(event: deconzLightEvent) {
+		this.logger.setSettings({requestId: event.id})
 		if('state' in event.payload) {
-			this.logger.setSettings({requestId: event.eventId})
+			this.logger.debug(`light got deconz state event; light='${this.name}'`)
+			this.logger.trace(`light got deconz state event; light='${this.name}'`, {event:event})
+			this.logger.trace(`light object own state before; light='${this.name}'`, {state: this.state})
 			Object.assign(this.state, event.payload.state)
+			this.logger.trace(`light object own state after; light='${this.name}'`, {state: this.state})
+		} else {
+			this.logger.debug(`websocket event payload has no 'state' property, discarded`)
 		}
 	}
 
@@ -95,7 +102,7 @@ export class AbstractDeconzLight {
 		}
 		myState.transitiontime = transition
 		this.deconz.api_put(`/lights/${this.id}/state`, myState)
-		console.log(`Activating state: /lights/${this.id}/state`, state)
+		this.logger.debug(`Activating state: /lights/${this.id}/state ${this.name}`, state)
 	}
 
 }
@@ -106,8 +113,8 @@ export class AbstractLight extends AbstractDeconzLight {
 	}
 	sceneNames: string[]
 
-	constructor(id: string, data: any, deconz: DeconzEventEmitter) {
-		super(id, data, deconz)
+	constructor(id: string, data: any, deconz: DeconzEventEmitter, logger: Logger) {
+		super(id, data, deconz, logger)
 		this.scenes={}
 		this.sceneNames=[]
 		this.delete_scene = this.delete_scene.bind(this);
@@ -127,14 +134,16 @@ export class AbstractLight extends AbstractDeconzLight {
 				found=true;
 				//TOOD: consider this to prevent further actions to fire
 				//clearTimeout(this.scenes[name_to_delete].timer)
+				this.logger.debug('deleting scene', {scene: scene})
 				delete(this.scenes[name_to_delete])
 				this.sceneNames.splice(this.sceneNames.indexOf(name),1)
-				this.update(this.scenes[name_to_delete].transitionOut)
+				this.update()
+				//this.scenes[name_to_delete].transitionOut)
 				return true
 			}
 		}
 		if(found === false)
-			console.log("BUG: scene to be deleted cannot be found")
+			this.logger.debug(`scene to be deleted cannot be found; scene_name='${name_to_delete}`)
 		return false
 	}
 
@@ -155,9 +164,9 @@ export class AbstractLight extends AbstractDeconzLight {
 			if(timeout>0) {
 				clearTimeout(scene.timer)
 				scene.timer = setTimeout(this.delete_scene, timeout*60000, name)
-				console.log(`scene ${name} already existed, restarted its timer`)
+				this.logger.debug(`scene already exists, restarting its timer; scene_name='${name}`)
 			} else 
-				console.log(`scene ${name} already existed`)
+				this.logger.debug(`scene already exists; scene_name='${name}`)
 			return false
 		}
 		let scene = new Scene(name, priority, transparent=transparent)
@@ -168,8 +177,9 @@ export class AbstractLight extends AbstractDeconzLight {
 		if(state)
 			scene.lightState = state
 		else {
+			this.logger.trace(`scene state before state merge; scene_name='${name}`, {state: scene.lightState})
 			scene.lightState = { ...this.state }
-            console.log('lightstate', scene.lightState)
+			this.logger.trace(`scene state after state merge; scene_name='${name}`, {state: scene.lightState})
         }
 		return true
 	}
@@ -207,7 +217,7 @@ function sortScenes(a: Scene, b: Scene) {
 	} else if (a.priority < b.priority) {
 		return 1
 	}
-	console.log(`BUG: Two active scenes have the same priority. a: ${a.name}, b: ${b.name}`);
+	console.warn(`two active scenes have the same priority; scene_a='${a.name}', scene_b='${b.name}'`);
 	return 0;
 }
 
@@ -239,6 +249,7 @@ class PhilipsColorGamutCBulbLight extends AbstractLight {
 		super.activateState(myState)
 	}
 }
+
 class IkeaE27WW806lm extends AbstractLight {
 	activateState(state: LightState) {
 		let myState: LightState = state;
@@ -295,41 +306,41 @@ export function lightsFactory(lights_object: Object, deconz: DeconzEventEmitter,
 		switch(`${data.type}/${data.manufacturername}/${data.modelid}`) {
 			case 'Extended color light/Philips/LCA001':
 				//fixme ez nem annyita ambiance szerintem
-				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name });)
+				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Color temperature light/Philips/LTW010':
-				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz)
+				lights[data.uniqueid] = new PhilipsWhiteAmbianceBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/Philips/LCT010':
-				lights[data.uniqueid] = new PhilipsColorGamutCBulbLight(id, data, deconz)
+				lights[data.uniqueid] = new PhilipsColorGamutCBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/Philips/LCT015':
-				lights[data.uniqueid] = new PhilipsColorGamutCBulbLight(id, data, deconz)
+				lights[data.uniqueid] = new PhilipsColorGamutCBulbLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/Philips/LST002':
-				lights[data.uniqueid] = new PhilipsLedStripLight(id, data, deconz)
+				lights[data.uniqueid] = new PhilipsLedStripLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/innr/FL 130 C':
-				lights[data.uniqueid] = new InnrLedStripLight(id, data, deconz)
+				lights[data.uniqueid] = new InnrLedStripLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Dimmable light/IKEA of Sweden/TRADFRI bulb E27 WW 806lm':
-				lights[data.uniqueid] = new IkeaE27WW806lm(id, data, deconz)
+				lights[data.uniqueid] = new IkeaE27WW806lm(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'On/Off plug-in unit/Heiman/TS011F':
 				//outlets of this kind may have a duplicate with their uniqueid ending in -01
-				outlets[data.uniqueid] = new LidlOutlet(id, data, deconz)
+				outlets[data.uniqueid] = new LidlOutlet(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'On/Off plug-in unit/IKEA of Sweden/TRADFRI control outlet':
-				outlets[data.uniqueid] = new IkeaOutlet(id, data, deconz)
+				outlets[data.uniqueid] = new IkeaOutlet(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/Heiman/TS0505A':
-				lights[data.uniqueid] = new LidlE27ColorLight(id, data, deconz)
+				lights[data.uniqueid] = new LidlE27ColorLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			case 'Extended color light/LIDL Livarno Lux/14149506L':
-				lights[data.uniqueid] = new LidlTableLight(id, data, deconz)
+				lights[data.uniqueid] = new LidlTableLight(id, data, deconz, logger.getChildLogger({ name: data.name }))
 				break;
 			default:
-				console.log(`TODO: Factory does not implement '${data.type}/${data.manufacturername}/${data.modelid}'`)
+				logger.warn(`TODO: Factory does not implement '${data.type}/${data.manufacturername}/${data.modelid}'`)
 		}
 	}
 }

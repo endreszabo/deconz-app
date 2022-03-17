@@ -10,12 +10,16 @@ import { Logger } from "tslog";
 
 export interface deconzEvent {
     payload: any
-    eventId: string
+    id: string
+}
+
+export interface lightStateEvent {
+    state: LightState
 }
 
 export interface deconzLightEvent {
-    payload: LightState
-    eventId: string
+    payload: lightStateEvent
+    id: string
 }
 
 /**
@@ -127,9 +131,11 @@ class MqttEmitter extends EventEmitter {
 
 export class DeconzEventEmitter extends EventEmitter {
     mqtt: MqttEmitter
+    logger: Logger
 
-    constructor() {
+    constructor(logger: Logger) {
         super()
+        this.logger = logger
         this.mqtt=new MqttEmitter(mqtturl)
     }
 
@@ -143,7 +149,7 @@ export class DeconzEventEmitter extends EventEmitter {
                 let hrTime = process.hrtime()
                 let msg: deconzEvent = {
                     payload: data,
-                    eventId: (hrTime[0] * 1000000000 + hrTime[1]).toString()
+                    id: (hrTime[0] * 1000000000 + hrTime[1]).toString()
                 };
 				this.emit(data.uniqueid, msg)
                 obj2mqtt(data, `/deconz/${data.uniqueid}/raw`).every((k,v) => {
@@ -151,7 +157,7 @@ export class DeconzEventEmitter extends EventEmitter {
                     return true;
                 })
 			} else {
-				console.log("unprocessed event", event.data, event)
+				this.logger.debug("unprocessed websocket event", {event: event.data})
 			}
 		}
 	}

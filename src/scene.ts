@@ -1,6 +1,20 @@
 
 import { LightState } from './lights'
 
+export class SceneGroup {
+	public readonly name: string
+	public scenes: Scene[]
+
+	constructor(name: string, scenes=[]) {
+		this.scenes = scenes
+		this.name = name
+	}
+
+	addScene(scene: Scene) {
+		this.scenes.push(scene)
+	}
+}
+
 export class Scene {
 	public state: LightState
 	public enabled: boolean
